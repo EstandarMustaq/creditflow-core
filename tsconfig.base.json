@@ -1,0 +1,38 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "ignoreDeprecations": "5.0",
+    "lib": ["ES2022"],
+    "strict": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true,
+    "noUncheckedIndexedAccess": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "baseUrl": ".",
+    "paths": {
+      "@creditflow-core/auth": ["packages/auth/src/index.ts"],
+      "@creditflow-core/db": ["packages/db/src/index.ts"],
+      "@creditflow-core/finance-engine": ["packages/finance-engine/src/index.ts"],
+      "@creditflow-core/ai-finance": ["packages/ai-finance/src/index.ts"],
+      "@creditflow-core/notifications": ["packages/notifications/src/index.ts"],
+      "@creditflow-core/excel": ["packages/excel/src/index.ts"],
+      "@creditflow-core/calendar": ["packages/calendar/src/index.ts"],
+      "@creditflow-core/shared": ["packages/shared/src/index.ts"],
+      "@microcredit/auth": ["packages/auth/src/index.ts"],
+      "@microcredit/db": ["packages/db/src/index.ts"],
+      "@microcredit/finance-engine": ["packages/finance-engine/src/index.ts"],
+      "@microcredit/ai-finance": ["packages/ai-finance/src/index.ts"],
+      "@microcredit/notifications": ["packages/notifications/src/index.ts"],
+      "@microcredit/excel": ["packages/excel/src/index.ts"],
+      "@microcredit/calendar": ["packages/calendar/src/index.ts"],
+      "@microcredit/shared": ["packages/shared/src/index.ts"]
+    }
+  }
+}

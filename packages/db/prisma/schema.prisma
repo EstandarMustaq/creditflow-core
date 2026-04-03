@@ -1,0 +1,200 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum RoleCode {
+  ADMIN
+  MANAGER
+  OFFICER
+}
+
+enum LoanStatus {
+  ACTIVE
+  AT_RISK
+  DELINQUENT
+  PAID
+  RESTRUCTURED
+}
+
+enum InstallmentStatus {
+  PENDING
+  AT_RISK
+  PARTIAL
+  OVERDUE
+  PAID
+  RESTRUCTURED
+}
+
+enum ReminderStatus {
+  PENDING
+  SENT
+  FAILED
+  CANCELLED
+}
+
+enum ReminderChannel {
+  EMAIL
+  SMS
+  WHATSAPP
+  INTERNAL
+}
+
+model RoleDefinition {
+  id          String   @id @default(cuid())
+  code        RoleCode @unique
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  users       User[]
+
+  @@map("roles")
+}
+
+model User {
+  id           String         @id @default(cuid())
+  roleId       String?
+  name         String
+  email        String         @unique
+  passwordHash String
+  role         RoleCode       @default(OFFICER)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  roleDef      RoleDefinition? @relation(fields: [roleId], references: [id])
+
+  @@map("users")
+}
+
+model Client {
+  id          String         @id @default(cuid())
+  name        String
+  phone       String
+  email       String?
+  nationalId  String?
+  address     String?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  loans       LoanContract[]
+
+  @@map("clients")
+}
+
+model LoanContract {
+  id                   String           @id @default(cuid())
+  clientId             String
+  principal            Float
+  annualInterestRate   Float
+  installmentCount     Int
+  startDate            DateTime
+  graceDays            Int              @default(0)
+  lateFeeRateDaily     Float            @default(0)
+  currency             String           @default("MZN")
+  status               LoanStatus       @default(ACTIVE)
+  totalContractValue   Float            @default(0)
+  totalPaid            Float            @default(0)
+  outstandingBalance   Float            @default(0)
+  longestDelayDays     Int              @default(0)
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+  client               Client           @relation(fields: [clientId], references: [id])
+  installmentPlan      InstallmentPlan?
+  installments         Installment[]
+  payments             Payment[]
+  reminders            Reminder[]
+  aiEvents             AiEvent[]
+
+  @@map("loan_contracts")
+}
+
+model InstallmentPlan {
+  id                String       @id @default(cuid())
+  loanContractId    String       @unique
+  version           Int          @default(1)
+  source            String       @default("INITIAL")
+  schedulePayload   Json
+  generatedAt       DateTime     @default(now())
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  loanContract      LoanContract @relation(fields: [loanContractId], references: [id])
+
+  @@map("installment_plans")
+}
+
+model Installment {
+  id              String            @id @default(cuid())
+  loanContractId  String
+  installmentNo   Int
+  dueDate         DateTime
+  amount          Float
+  principal       Float
+  interest        Float
+  paidAmount      Float             @default(0)
+  lateFee         Float             @default(0)
+  remainingToPay  Float             @default(0)
+  daysLate        Int               @default(0)
+  status          InstallmentStatus @default(PENDING)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  loanContract    LoanContract      @relation(fields: [loanContractId], references: [id])
+
+  @@unique([loanContractId, installmentNo])
+  @@map("installments")
+}
+
+model Payment {
+  id             String       @id @default(cuid())
+  loanContractId String
+  amount         Float
+  paidAt         DateTime
+  reference      String?
+  createdAt      DateTime     @default(now())
+  loanContract   LoanContract @relation(fields: [loanContractId], references: [id])
+
+  @@map("payments")
+}
+
+model Reminder {
+  id             String          @id @default(cuid())
+  loanContractId String
+  channel        ReminderChannel
+  message        String
+  scheduledAt    DateTime
+  sentAt         DateTime?
+  status         ReminderStatus  @default(PENDING)
+  metadata       Json?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  loanContract   LoanContract    @relation(fields: [loanContractId], references: [id])
+
+  @@map("reminders")
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  entity    String
+  action    String
+  entityId   String?
+  payload   Json?
+  createdAt DateTime @default(now())
+
+  @@map("audit_logs")
+}
+
+model AiEvent {
+  id             String       @id @default(cuid())
+  loanContractId String?
+  eventType      String
+  provider       String
+  model          String
+  inputPayload   Json?
+  outputPayload  Json?
+  createdAt      DateTime     @default(now())
+  loanContract   LoanContract? @relation(fields: [loanContractId], references: [id])
+
+  @@map("ai_events")
+}

@@ -1,0 +1,18 @@
+{
+  "name": "@creditflow-core/excel",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "build": "echo 'excel package placeholder'"
+  },
+  "dependencies": {
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3"
+  },
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": "./src/index.ts"
+}

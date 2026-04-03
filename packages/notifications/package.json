@@ -1,0 +1,18 @@
+{
+  "name": "@creditflow-core/notifications",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "build": "echo 'notifications package placeholder'"
+  },
+  "dependencies": {
+    "nodemailer": "^6.9.16"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3"
+  },
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": "./src/index.ts"
+}

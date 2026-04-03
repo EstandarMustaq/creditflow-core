@@ -1,0 +1,20 @@
+{
+  "name": "@creditflow-core/worker",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "build": "echo 'Worker build step placeholder'"
+  },
+  "dependencies": {
+    "@creditflow-core/db": "workspace:*",
+    "node-cron": "^4.0.2",
+    "dayjs": "^1.11.13"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  }
+}

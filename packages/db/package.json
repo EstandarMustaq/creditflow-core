@@ -1,0 +1,24 @@
+{
+  "name": "@creditflow-core/db",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "generate": "prisma generate",
+    "migrate": "prisma migrate dev",
+    "studio": "prisma studio",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "build": "echo 'db package placeholder'"
+  },
+  "dependencies": {
+    "@creditflow-core/finance-engine": "workspace:*",
+    "@creditflow-core/notifications": "workspace:*",
+    "@prisma/client": "^6.2.1"
+  },
+  "devDependencies": {
+    "prisma": "^6.2.1",
+    "typescript": "^5.7.3"
+  },
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": "./src/index.ts"
+}
