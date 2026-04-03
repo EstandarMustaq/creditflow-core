@@ -19,7 +19,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
   app.post('/register', async (request, reply) => {
     const input = registerSchema.parse(request.body);
     const passwordHash = await hashPassword(input.password);
-    const user = await (prisma as any).user.create({
+    const user = await prisma.user.create({
       data: {
         name: input.name,
         email: input.email,
@@ -48,7 +48,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
 
   app.post('/login', async (request, reply) => {
     const input = loginSchema.parse(request.body);
-    const user = await (prisma as any).user.findUnique({
+    const user = await prisma.user.findUnique({
       where: { email: input.email }
     });
 

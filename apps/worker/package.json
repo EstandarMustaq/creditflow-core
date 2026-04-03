@@ -9,12 +9,14 @@
     "build": "echo 'Worker build step placeholder'"
   },
   "dependencies": {
+    "@creditflow-core/shared": "workspace:*",
     "@creditflow-core/db": "workspace:*",
+    "dotenv": "^16.6.1",
     "node-cron": "^4.0.2",
     "dayjs": "^1.11.13"
   },
   "devDependencies": {
     "tsx": "^4.19.2",
-    "typescript": "^5.7.3"
+    "typescript": "^5.9.3"
   }
 }

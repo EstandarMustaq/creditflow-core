@@ -1,8 +1,13 @@
+import 'dotenv/config';
+import { ensureCoreSchema } from '@creditflow-core/db';
 import { buildServer } from './server.js';
+import { parseEnv } from './config/env.js';
 
-const port = Number(process.env.PORT ?? 3000);
+const env = parseEnv();
+const port = env.PORT;
 const host = process.env.HOST ?? '0.0.0.0';
 
+await ensureCoreSchema();
 const server = await buildServer();
 await server.listen({ port, host });
 

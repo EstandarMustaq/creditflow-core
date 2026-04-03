@@ -1,100 +1,100 @@
-# Creditflow Core Monorepo
+# Creditflow Core
 
-![Monorepo](https://img.shields.io/badge/architecture-monorepo-0f172a)
+![Architecture](https://img.shields.io/badge/architecture-monorepo-0f172a)
 ![Node.js](https://img.shields.io/badge/node-%3E%3D20-15803d)
-![TypeScript](https://img.shields.io/badge/typescript-5.x-2563eb)
-![Fastify](https://img.shields.io/badge/api-fastify-000000)
+![TypeScript](https://img.shields.io/badge/typescript-5.9-2563eb)
+![API](https://img.shields.io/badge/api-fastify-000000)
 ![Prisma](https://img.shields.io/badge/orm-prisma-2d3748)
-![Neon](https://img.shields.io/badge/database-neon_postgres-14b8a6)
-![Finance Engine](https://img.shields.io/badge/finance_engine-determin%C3%ADstico-f59e0b)
+![Database](https://img.shields.io/badge/database-neon_postgres-14b8a6)
+![Finance Engine](https://img.shields.io/badge/finance_engine-deterministic-f59e0b)
 ![AI](https://img.shields.io/badge/ai-groq-7c3aed)
 
-Back-end modular para operações de microcrédito, cobrança e acompanhamento financeiro. O `creditflow-core` concentra API, worker, motor financeiro auditável, integração com Neon Postgres, análise assistida por IA, importação/exportação em Excel e notificações automáticas.
+Modular back-office monorepo for microcredit operations, repayment tracking, collections, and financial servicing. `creditflow-core` bundles the API, background worker, deterministic finance engine, Neon Postgres integration, AI-assisted analysis, Excel import/export, and operational notifications.
 
-O foco do projeto é separar claramente duas camadas:
+The platform is built around a strict separation:
 
-- cálculo financeiro determinístico, testável e auditável
-- automação operacional, análise, alertas e integração com aplicações externas
+- deterministic, testable, auditable financial computation
+- operational automation, analysis, reminders, and external integrations
 
-## Proposta de valor
+## Value proposition
 
-- Centraliza contratos, prestações, pagamentos, saldo remanescente e cobrança em um único núcleo.
-- Evita que IA “invente” valores financeiros sensíveis.
-- Permite integrar dashboards, ERPs, CRMs, apps móveis e portais de cobrança sobre uma API própria.
-- Suporta operação em tempo real e rotinas em background no mesmo monorepo.
+- Centralizes contracts, installments, payments, outstanding balance, and collections in one backend.
+- Prevents AI from inventing financially sensitive values.
+- Supports dashboards, ERPs, CRMs, mobile apps, client portals, and collections tools over a single API.
+- Runs real-time flows and recurring background routines in the same codebase.
 
-## Regra de ouro
+## Golden rule
 
-A IA não calcula dinheiro.
+AI must not calculate money.
 
-Ela pode interpretar dados, resumir risco, sugerir renegociação, gerar texto de cobrança e apoiar análise operacional. Mas os cálculos de:
+AI may interpret data, summarize risk, suggest renegotiation, generate collection copy, and support operational analysis. The calculation of:
 
-- número de prestações
-- juros
-- mora
-- atraso
-- remanescente
-- total pago
+- installment count
+- interest
+- penalty interest
+- delinquency
+- remaining balance
+- total paid
 
-ficam exclusivamente no `packages/finance-engine`.
+must remain inside `packages/finance-engine`.
 
-Isso garante previsibilidade, rastreabilidade e confiança para auditoria, compliance e operações financeiras.
+This keeps the platform predictable, traceable, and ready for audit, compliance, and financial operations.
 
-## Arquitetura
+## Architecture
 
 ### Apps
 
-- `apps/api` — API principal para autenticação, clientes, contratos, pagamentos, extratos, IA, Excel e lembretes
-- `apps/worker` — rotinas agendadas para recalcular contratos, identificar atraso e disparar lembretes
+- `apps/api` - primary API for auth, clients, loans, payments, statements, AI, Excel, health, and reminders
+- `apps/worker` - scheduled routines for loan recalculation, overdue detection, reminders, and worker heartbeat
 
 ### Packages
 
-- `packages/auth` — JWT, password hashing e RBAC
-- `packages/db` — Prisma Client, orquestração de persistência e integração com Neon
-- `packages/finance-engine` — cronograma, mora, atraso, saldo, pagamento parcial, renegociação
-- `packages/ai-finance` — integração com Groq para análise textual orientada por dados calculados
-- `packages/notifications` — e-mail e notificações
-- `packages/excel` — importação e exportação XLSX
-- `packages/calendar` — agenda de vencimentos e eventos operacionais
-- `packages/shared` — tipos e contratos comuns
+- `packages/auth` - JWT, password hashing, and RBAC
+- `packages/db` - Prisma Client, persistence orchestration, and Neon integration
+- `packages/finance-engine` - schedule generation, penalty interest, delinquency, balance, partial payments, renegotiation
+- `packages/ai-finance` - Groq integration for text analysis based on computed finance data
+- `packages/notifications` - email and notification delivery
+- `packages/excel` - XLSX import and export
+- `packages/calendar` - due date and operational event scheduling
+- `packages/shared` - shared types and cross-app contracts
 
-## Fluxo financeiro recomendado
+## Recommended finance flow
 
-1. Criar contrato do microcrédito.
-2. Gerar cronograma de prestações.
-3. Calcular valor base da parcela.
-4. Aplicar juros do período.
-5. Verificar atraso.
-6. Calcular mora ou multas, se existirem.
-7. Atualizar saldo remanescente.
-8. Enviar lembrete automático.
-9. Repetir o processo em background diariamente.
+1. Create the microcredit contract.
+2. Generate the installment schedule.
+3. Calculate the base installment amount.
+4. Apply period interest.
+5. Check delinquency.
+6. Apply late fees or penalty rules when applicable.
+7. Update the remaining balance.
+8. Send the automatic reminder.
+9. Repeat the process daily in the background worker.
 
-## Fórmulas base do domínio
+## Domain formulas
 
 ```txt
-saldo_devedor = principal_restante + juros_em_aberto + multa_por_atraso - pagamentos_efetuados
-dias_atraso = max(0, hoje - vencimento)
-juros_mora = saldo_em_atraso × taxa_mora_diaria × dias_atraso
-remanescente = total_contrato - total_pago
+outstanding_balance = remaining_principal + open_interest + late_fee - applied_payments
+days_overdue = max(0, today - due_date)
+penalty_interest = overdue_amount * daily_penalty_rate * days_overdue
+remaining_amount = contract_total - total_paid
 ```
 
-## Casos de automação suportados
+## Supported automation cases
 
-- Se a prestação vence hoje e não entrou pagamento, o sistema pode marcar como `AT_RISK`.
-- Se passar do vencimento, a prestação passa para `OVERDUE`.
-- Se houver pagamento parcial, o sistema recalcula saldo e estado do contrato.
-- Se houver renegociação, o plano pode ser regenerado sobre o saldo aberto.
-- Se o atraso ultrapassar um limite configurado, o worker gera lembrete automático.
+- If an installment is due today and no payment has arrived, the system can mark it as `AT_RISK`.
+- If the due date passes, the installment moves to `OVERDUE`.
+- If a partial payment is posted, the system recalculates balance and contract status.
+- If a renegotiation occurs, the installment plan can be regenerated from the open balance.
+- If overdue days exceed a configured threshold, the worker issues an automatic reminder.
 
-## Endpoints principais
+## Main endpoints
 
-### Autenticação
+### Authentication
 
 - `POST /auth/register`
 - `POST /auth/login`
 
-### Operação de crédito
+### Credit operations
 
 - `POST /clients`
 - `GET /clients`
@@ -105,8 +105,9 @@ remanescente = total_contrato - total_pago
 - `GET /loans/:id/balance`
 - `POST /payments`
 
-### Automação e suporte operacional
+### Automation and operations
 
+- `GET /health`
 - `POST /reminders/send`
 - `POST /ai/analysis`
 - `POST /excel/import`
@@ -115,7 +116,7 @@ remanescente = total_contrato - total_pago
 - `POST /calendar/build`
 - `GET /reports/portfolio`
 
-## Modelo de dados principal
+## Core data model
 
 - `users`
 - `roles`
@@ -128,15 +129,15 @@ remanescente = total_contrato - total_pago
 - `audit_logs`
 - `ai_events`
 
-## Como usar
+## Getting started
 
-1. Configure o ambiente:
+1. Create the environment file:
 
 ```bash
 cp .env.example .env
 ```
 
-2. Defina pelo menos:
+2. Define at least:
 
 ```env
 DATABASE_URL=postgresql://...
@@ -149,49 +150,58 @@ SMTP_PASS=...
 SMTP_FROM=...
 ```
 
-3. Instale dependências:
+3. Install dependencies:
 
 ```bash
 pnpm install
 ```
 
-4. Gere o client Prisma:
+4. Generate Prisma Client:
 
 ```bash
 pnpm --filter @creditflow-core/db generate
 ```
 
-5. Rode a API:
+5. Start the API:
 
 ```bash
 pnpm dev:api
 ```
 
-6. Rode o worker:
+6. Start the worker:
 
 ```bash
 pnpm dev:worker
 ```
 
-## Exemplo de uso em dashboard
+## Repository governance
 
-Um dashboard web de cobrança, operações ou risco pode consumir o `creditflow-core` para exibir:
+Use these files as the operational baseline of the project:
 
-- carteira ativa
-- contratos em risco
-- contratos em atraso
-- saldo em aberto por cliente
-- histórico de pagamentos
-- ranking de inadimplência
-- alertas e lembretes pendentes
+- contribution: [CONTRIBUTING.md](CONTRIBUTING.md)
+- security: [SECURITY.md](SECURITY.md)
+- code of conduct: [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
+- license: [LICENSE](LICENSE)
 
-### Exemplo: buscar carteira consolidada
+## Dashboard integration example
+
+A web dashboard for collections, servicing, or risk monitoring can consume `creditflow-core` to display:
+
+- active portfolio
+- at-risk contracts
+- overdue contracts
+- outstanding balance by client
+- payment history
+- delinquency ranking
+- pending reminders
+
+### Example: fetch consolidated portfolio
 
 ```ts
 const response = await fetch('http://localhost:3000/reports/portfolio', {
   headers: {
-    Authorization: `Bearer ${token}`
-  }
+    Authorization: `Bearer ${token}`,
+  },
 });
 
 const portfolio = await response.json();
@@ -199,13 +209,13 @@ const portfolio = await response.json();
 console.log(portfolio);
 ```
 
-### Exemplo: buscar extrato consolidado de cliente
+### Example: fetch client statement
 
 ```ts
 const response = await fetch(`http://localhost:3000/clients/${clientId}/statement`, {
   headers: {
-    Authorization: `Bearer ${token}`
-  }
+    Authorization: `Bearer ${token}`,
+  },
 });
 
 const statement = await response.json();
@@ -214,42 +224,42 @@ console.log(statement.loans);
 console.log(statement.summary);
 ```
 
-## Exemplo de integração em aplicações externas
+## External application integration
 
-O `creditflow-core` pode ser consumido por:
+`creditflow-core` can be consumed by:
 
-- dashboards administrativos
-- CRMs de cobrança
-- apps mobile para agentes de crédito
-- portais do cliente
-- ERPs financeiros
-- sistemas de call center
+- admin dashboards
+- collections CRMs
+- mobile apps for field agents
+- client self-service portals
+- financial ERPs
+- call center systems
 
-### Exemplo: registrar pagamento vindo de app mobile
+### Example: post a payment from a mobile app
 
 ```ts
 await fetch('http://localhost:3000/payments', {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',
-    Authorization: `Bearer ${token}`
+    Authorization: `Bearer ${token}`,
   },
   body: JSON.stringify({
     loanId: 'loan_123',
     amount: 2500,
     paidAt: new Date().toISOString(),
-    reference: 'mobile-agent-collection'
-  })
+    reference: 'mobile-agent-collection',
+  }),
 });
 ```
 
-### Exemplo: consultar saldo para portal do cliente
+### Example: retrieve loan balance for a client portal
 
 ```ts
 const response = await fetch(`http://localhost:3000/loans/${loanId}/balance`, {
   headers: {
-    Authorization: `Bearer ${token}`
-  }
+    Authorization: `Bearer ${token}`,
+  },
 });
 
 const balance = await response.json();
@@ -259,61 +269,53 @@ console.log(balance.summary.totalPaid);
 console.log(balance.schedule);
 ```
 
-### Exemplo: análise assistida por IA sem delegar cálculo financeiro
+### Example: request AI-assisted analysis without delegating financial calculation
 
 ```ts
 const response = await fetch('http://localhost:3000/ai/analysis', {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',
-    Authorization: `Bearer ${token}`
+    Authorization: `Bearer ${token}`,
   },
   body: JSON.stringify({
     loanId: 'loan_123',
-    notes: 'Cliente pediu renegociação e informou quebra de renda no último mês.'
-  })
+    notes: 'The client requested renegotiation after a recent income shock.',
+  }),
 });
 
 const analysis = await response.json();
 console.log(analysis);
 ```
 
-## Vantagem para integrações
+## Integration advantage
 
-Em vez de espalhar regra financeira em várias aplicações, o `creditflow-core` funciona como backend central:
+Instead of spreading finance rules across several applications, `creditflow-core` acts as the central backend:
 
-- a dashboard enxerga indicadores
-- o app mobile registra cobranças
-- o portal consulta saldos e vencimentos
-- o worker executa automações
-- a IA recebe valores já calculados pelo engine
+- the dashboard reads portfolio indicators
+- the mobile app records collections
+- the portal shows balances and due dates
+- the worker runs background automation
+- the AI layer receives already-computed financial values
 
-Assim, toda a operação fala a mesma linguagem financeira.
+That keeps every channel aligned to the same financial language.
 
-## Qualidade e validação
+## Quality and validation
 
-- type-safe com TypeScript
-- validação de payloads com Zod
-- persistência com Prisma
-- banco serverless com Neon
-- engine financeiro isolado e reutilizável
-- worker separado para processamento diário
+- type-safe with TypeScript
+- payload validation with Zod
+- persistence with Prisma
+- serverless Postgres with Neon
+- isolated and reusable finance engine
+- separate worker for daily processing
 
-## Roadmap sugerido
+## Suggested roadmap
 
-Este roadmap é voltado para a equipa técnica responsável por levar o `creditflow-core` de uma base funcional para uma operação pronta para produção, especialmente em contextos de fintech, microcrédito, cobrança e back-office financeiro.
+This roadmap is aimed at the technical team responsible for taking `creditflow-core` from a functional base to a production-grade microcredit and collections platform.
 
-- migrations Prisma versionadas para produção
-- refresh token e gestão de sessão
-- fila com BullMQ para cobrança e notificações
-- webhook de pagamentos externos
-- multi-tenant por instituição financeira
-- métricas e observabilidade
-- testes automatizados de API e domínio
-
-## Licença
-
-Este projeto está licenciado sob a GNU General Public License, Version 3, 29 June 2007.
-
-- Licença: `GNU GPLv3`
-- Referência oficial: `GNU GENERAL PUBLIC LICENSE Version 3, 29 June 2007`
+- versioned Prisma migrations for production
+- refresh tokens and session management
+- BullMQ queues for collections and notifications
+- external payment webhooks
+- multi-tenant support by financial institution
+- metrics and observability

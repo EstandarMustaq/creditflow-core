@@ -7,3 +7,5 @@ export interface ApiResult<T> {
   data?: T;
   error?: string;
 }
+
+export * from './worker-health.js';
