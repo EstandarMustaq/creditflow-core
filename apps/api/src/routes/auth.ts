@@ -46,34 +46,45 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
     });
   });
 
-  app.post('/login', async (request, reply) => {
-    const input = loginSchema.parse(request.body);
-    const user = await prisma.user.findUnique({
-      where: { email: input.email }
-    });
+  app.post(
+    '/login',
+    {
+      config: {
+        rateLimit: {
+          max: 5,
+          timeWindow: '1 minute'
+        }
+      },
+      handler: async (request, reply) => {
+        const input = loginSchema.parse(request.body);
+        const user = await prisma.user.findUnique({
+          where: { email: input.email }
+        });
 
-    if (!user) {
-      return reply.unauthorized('Credenciais inválidas');
-    }
+        if (!user) {
+          return reply.unauthorized('Credenciais inválidas');
+        }
 
-    const valid = await verifyPassword(input.password, String(user.passwordHash));
-    if (!valid) {
-      return reply.unauthorized('Credenciais inválidas');
-    }
+        const valid = await verifyPassword(input.password, String(user.passwordHash));
+        if (!valid) {
+          return reply.unauthorized('Credenciais inválidas');
+        }
 
-    return {
-      authenticated: true,
-      token: signAccessToken({
-        sub: String(user.id),
-        role: String(user.role) as 'ADMIN' | 'MANAGER' | 'OFFICER',
-        name: String(user.name)
-      }),
-      user: {
-        id: String(user.id),
-        name: String(user.name),
-        email: String(user.email),
-        role: String(user.role)
+        return {
+          authenticated: true,
+          token: signAccessToken({
+            sub: String(user.id),
+            role: String(user.role) as 'ADMIN' | 'MANAGER' | 'OFFICER',
+            name: String(user.name)
+          }),
+          user: {
+            id: String(user.id),
+            name: String(user.name),
+            email: String(user.email),
+            role: String(user.role)
+          }
+        };
       }
-    };
-  });
+    }
+  );
 };
