@@ -7,7 +7,7 @@
     "build": "echo 'notifications package placeholder'"
   },
   "dependencies": {
-    "nodemailer": "^6.9.16"
+    "nodemailer": "^8.0.4"
   },
   "devDependencies": {
     "typescript": "^5.9.3"
