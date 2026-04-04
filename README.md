@@ -8,6 +8,8 @@
 ![Database](https://img.shields.io/badge/database-neon_postgres-14b8a6)
 ![Finance Engine](https://img.shields.io/badge/finance_engine-deterministic-f59e0b)
 ![AI](https://img.shields.io/badge/ai-groq-7c3aed)
+[![CodeQL Advanced](https://github.com/EstandarMustaq/creditflow-core/actions/workflows/codeql.yml/badge.svg)](https://github.com/EstandarMustaq/creditflow-core/actions/workflows/codeql.yml)
+[![APIsec](https://github.com/EstandarMustaq/creditflow-core/actions/workflows/apisec-scan.yml/badge.svg)](https://github.com/EstandarMustaq/creditflow-core/actions/workflows/apisec-scan.yml)
 
 Modular back-office monorepo for microcredit operations, repayment tracking, collections, and financial servicing. `creditflow-core` bundles the API, background worker, deterministic finance engine, Neon Postgres integration, AI-assisted analysis, Excel import/export, and operational notifications.
 
