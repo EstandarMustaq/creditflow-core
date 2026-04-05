@@ -134,7 +134,7 @@ It participates in the workspace only so `pnpm` can install and resolve dependen
 
 ## Documentation
 
-- contribution: [CONTRIBUTING.md](CoreBank/CONTRIBUTING.md)
+- contribution: [CONTRIBUTING.md](/CoreBank/CONTRIBUTING.md)
 - security: [SECURITY.md](/CoreBank/SECURITY.md)
-- code of conduct: [CODE_OF_CONDUCT.md](CoreBank/CODE_OF_CONDUCT.md)
+- code of conduct: [CODE_OF_CONDUCT.md](/CoreBank/CODE_OF_CONDUCT.md)
 - license: [LICENSE](/CoreBank/LICENSE)
