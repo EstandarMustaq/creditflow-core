@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { startReminderJob } from './jobs/reminders.js';
 import { startRecalculationJob } from './jobs/recalculate.js';
+import { startCrcDeadlineJob } from './jobs/crc-deadlines.js';
 import { writeWorkerHeartbeat } from '@creditflow-core/shared';
 import { ensureCoreSchema } from '@creditflow-core/db';
 
@@ -16,3 +17,4 @@ setInterval(() => {
 }, 30_000);
 startReminderJob();
 startRecalculationJob();
+startCrcDeadlineJob();

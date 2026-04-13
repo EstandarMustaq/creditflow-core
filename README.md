@@ -11,7 +11,7 @@
 [![CodeQL Advanced](https://github.com/EstandarMustaq/creditflow-core/actions/workflows/codeql.yml/badge.svg)](https://github.com/EstandarMustaq/creditflow-core/actions/workflows/codeql.yml)
 [![APIsec](https://github.com/EstandarMustaq/creditflow-core/actions/workflows/apisec-scan.yml/badge.svg)](https://github.com/EstandarMustaq/creditflow-core/actions/workflows/apisec-scan.yml)
 
-Modular back-office monorepo for microcredit operations, repayment tracking, collections, and financial servicing. `creditflow-core` bundles the API, background worker, deterministic finance engine, Neon Postgres integration, AI-assisted analysis, Excel import/export, and operational notifications.
+Modular back-office monorepo for microcredit operations, repayment tracking, collections, and financial servicing. `creditflow-core` bundles the API, background worker, deterministic finance engine, Neon Postgres integration, AI-assisted analysis, file import, CRC export, and operational notifications.
 
 The platform is built around a strict separation:
 
@@ -46,7 +46,7 @@ This keeps the platform predictable, traceable, and ready for audit, compliance,
 
 ### Apps
 
-- `apps/api` - primary API for auth, clients, loans, payments, statements, AI, Excel, health, and reminders
+- `apps/api` - primary API for auth, clients, loans, payments, statements, AI, file intake, CRC export, health, and reminders
 - `apps/worker` - scheduled routines for loan recalculation, overdue detection, reminders, and worker heartbeat
 
 ### Packages
@@ -56,7 +56,7 @@ This keeps the platform predictable, traceable, and ready for audit, compliance,
 - `packages/finance-engine` - schedule generation, penalty interest, delinquency, balance, partial payments, renegotiation
 - `packages/ai-finance` - Groq integration for text analysis based on computed finance data
 - `packages/notifications` - email and notification delivery
-- `packages/excel` - XLSX import and export
+- `packages/file-exchange` - CSV intake templates and file parsing
 - `packages/calendar` - due date and operational event scheduling
 - `packages/shared` - shared types and cross-app contracts
 
@@ -112,9 +112,9 @@ remaining_amount = contract_total - total_paid
 - `GET /health`
 - `POST /reminders/send`
 - `POST /ai/analysis`
-- `POST /excel/import`
-- `GET /excel/export`
-- `GET /excel/template`
+- `POST /files/import`
+- `GET /files/template`
+- `GET /crc/export`
 - `POST /calendar/build`
 - `GET /reports/portfolio`
 

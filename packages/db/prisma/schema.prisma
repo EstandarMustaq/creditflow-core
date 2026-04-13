@@ -44,6 +44,38 @@ enum ReminderChannel {
   INTERNAL
 }
 
+enum LoanPartyRole {
+  BORROWER
+  AVALIST
+  GUARANTOR
+}
+
+enum CrcCaseStatus {
+  OPEN
+  CORRECTED
+  CLOSED
+  EXPIRED
+}
+
+enum CrcExportFormat {
+  CSV
+  XML
+}
+
+model ImfInstitution {
+  id          String         @id @default(cuid())
+  code        String         @unique
+  name        String
+  nuib        String         @unique
+  email       String?
+  active      Boolean        @default(true)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  loans       LoanContract[]
+
+  @@map("imf_institutions")
+}
+
 model RoleDefinition {
   id          String   @id @default(cuid())
   code        RoleCode @unique
@@ -63,6 +95,7 @@ model User {
   email        String         @unique
   passwordHash String
   role         RoleCode       @default(OFFICER)
+  lastActiveAt DateTime?
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
   roleDef      RoleDefinition? @relation(fields: [roleId], references: [id])
@@ -71,21 +104,35 @@ model User {
 }
 
 model Client {
-  id          String         @id @default(cuid())
-  name        String
-  phone       String
-  email       String?
-  nationalId  String?
-  address     String?
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
-  loans       LoanContract[]
+  id                  String         @id @default(cuid())
+  name                String
+  nuib                String         @unique
+  phone               String
+  email               String
+  nationalId          String
+  address             String
+  kycStatus           String         @default("PENDING")
+  documentType        String         @default("MOZ_ID")
+  documentAuthentic   Boolean        @default(false)
+  documentFormatValid Boolean        @default(false)
+  documentCheckedAt   DateTime?
+  phoneVerified       Boolean        @default(false)
+  emailVerified       Boolean        @default(false)
+  addressVerified     Boolean        @default(false)
+  crcConsentAt        DateTime?
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+  loans               LoanContract[]
+  parties             LoanParty[]
+  crcCases            CrcRectificationCase[]
+  crcConsultations    CrcConsultationLog[]
 
   @@map("clients")
 }
 
 model LoanContract {
   id                   String           @id @default(cuid())
+  imfId                String?
   clientId             String
   principal            Float
   annualInterestRate   Float
@@ -99,16 +146,40 @@ model LoanContract {
   totalPaid            Float            @default(0)
   outstandingBalance   Float            @default(0)
   longestDelayDays     Int              @default(0)
+  extinguishedAt       DateTime?
+  crcReportedAt        DateTime?
+  retentionUntil       DateTime?
   createdAt            DateTime         @default(now())
   updatedAt            DateTime         @updatedAt
+  imf                  ImfInstitution?  @relation(fields: [imfId], references: [id])
   client               Client           @relation(fields: [clientId], references: [id])
   installmentPlan      InstallmentPlan?
   installments         Installment[]
   payments             Payment[]
   reminders            Reminder[]
   aiEvents             AiEvent[]
+  parties              LoanParty[]
+  settlementLetters    SettlementLetter[]
+  retentionLogs        ImmutableRetentionLog[]
 
   @@map("loan_contracts")
+}
+
+model LoanParty {
+  id             String        @id @default(cuid())
+  loanContractId String
+  clientId       String?
+  role           LoanPartyRole
+  name           String
+  nuib           String
+  nationalId     String?
+  phone          String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  loanContract   LoanContract  @relation(fields: [loanContractId], references: [id])
+  client         Client?       @relation(fields: [clientId], references: [id])
+
+  @@map("loan_parties")
 }
 
 model InstallmentPlan {
@@ -183,6 +254,75 @@ model AuditLog {
   createdAt DateTime @default(now())
 
   @@map("audit_logs")
+}
+
+model ImmutableRetentionLog {
+  id             String       @id @default(cuid())
+  loanContractId String?
+  eventType      String
+  retentionUntil DateTime?
+  payload        Json?
+  createdAt      DateTime     @default(now())
+  loanContract   LoanContract? @relation(fields: [loanContractId], references: [id])
+
+  @@map("immutable_retention_logs")
+}
+
+model SettlementLetter {
+  id             String       @id @default(cuid())
+  loanContractId String
+  issuedAt       DateTime     @default(now())
+  issuedBy       String?
+  fileName       String
+  mimeType       String
+  documentBase64 String
+  loanContract   LoanContract @relation(fields: [loanContractId], references: [id])
+
+  @@map("settlement_letters")
+}
+
+model CrcRectificationCase {
+  id                  String        @id @default(cuid())
+  clientId            String
+  loanContractId      String?
+  reason              String
+  requestedByClientAt DateTime?
+  institutionDetectedAt DateTime?
+  clientDueAt         DateTime?
+  spontaneousDueAt    DateTime?
+  status              CrcCaseStatus @default(OPEN)
+  resolvedAt          DateTime?
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+  client              Client        @relation(fields: [clientId], references: [id])
+
+  @@map("crc_rectification_cases")
+}
+
+model CrcConsultationLog {
+  id          String   @id @default(cuid())
+  clientId    String
+  performedBy String?
+  charged     Boolean  @default(true)
+  queryCount  Int      @default(1)
+  responseRef String?
+  createdAt   DateTime @default(now())
+  client      Client   @relation(fields: [clientId], references: [id])
+
+  @@map("crc_consultation_logs")
+}
+
+model CrcExportLayout {
+  id         String          @id @default(cuid())
+  name       String          @unique
+  format     CrcExportFormat
+  fields     Json
+  rootNode   String?
+  active     Boolean         @default(true)
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+
+  @@map("crc_export_layouts")
 }
 
 model AiEvent {

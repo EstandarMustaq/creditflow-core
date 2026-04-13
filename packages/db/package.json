@@ -10,6 +10,8 @@
     "build": "echo 'db package placeholder'"
   },
   "dependencies": {
+    "@creditflow-core/ai-finance": "workspace:*",
+    "@creditflow-core/auth": "workspace:*",
     "@creditflow-core/finance-engine": "workspace:*",
     "@creditflow-core/notifications": "workspace:*",
     "@prisma/client": "^6.2.1",

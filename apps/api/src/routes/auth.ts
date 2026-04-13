@@ -2,18 +2,44 @@ import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 import { hashPassword, signAccessToken, verifyPassword } from '@creditflow-core/auth';
 import { prisma } from '@creditflow-core/db';
+import {
+  getAllowedCorporateEmail,
+  isAllowedCorporateUserEmail,
+  isKnownCorporateUserEmail,
+  normalizeEmail,
+} from '@creditflow-core/shared';
 
-const registerSchema = z.object({
-  name: z.string().min(2),
-  email: z.string().email(),
-  password: z.string().min(8),
-  role: z.enum(['ADMIN', 'MANAGER', 'OFFICER']).default('OFFICER')
-});
+const registerSchema = z
+  .object({
+    name: z.string().min(2),
+    email: z.string().email(),
+    password: z.string().min(8),
+    role: z.enum(['ADMIN', 'MANAGER', 'OFFICER']).default('OFFICER')
+  })
+  .superRefine((input, ctx) => {
+    if (!isAllowedCorporateUserEmail(input.email, input.role)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['email'],
+        message: `Email must match the role domain ${getAllowedCorporateEmail(input.role)}`
+      });
+    }
+  });
 
-const loginSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(8)
-});
+const loginSchema = z
+  .object({
+    email: z.string().email(),
+    password: z.string().min(8)
+  })
+  .superRefine((input, ctx) => {
+    if (!isKnownCorporateUserEmail(input.email)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['email'],
+        message: 'Email must use a corporate CoreBank domain'
+      });
+    }
+  });
 
 export const authRoutes: FastifyPluginAsync = async (app) => {
   app.post('/register', async (request, reply) => {
@@ -22,9 +48,13 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
     const user = await prisma.user.create({
       data: {
         name: input.name,
-        email: input.email,
+        email: normalizeEmail(input.email),
         passwordHash,
-        role: input.role
+        role: input.role,
+        lastActiveAt: new Date(),
+        roleDef: {
+          connect: { code: input.role }
+        }
       }
     });
 
@@ -58,7 +88,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
       handler: async (request, reply) => {
         const input = loginSchema.parse(request.body);
         const user = await prisma.user.findUnique({
-          where: { email: input.email }
+          where: { email: normalizeEmail(input.email) }
         });
 
         if (!user) {
@@ -69,6 +99,13 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
         if (!valid) {
           return reply.unauthorized('Credenciais inválidas');
         }
+
+        await prisma.user.update({
+          where: { id: user.id },
+          data: {
+            lastActiveAt: new Date(),
+          },
+        });
 
         return {
           authenticated: true,

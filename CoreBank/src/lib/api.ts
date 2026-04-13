@@ -58,7 +58,7 @@ export function getClients(token: string) {
 
 export function createClient(
   token: string,
-  input: { name: string; phone: string; email?: string; nationalId?: string; address?: string }
+  input: { name: string; nuib: string; phone: string; email: string; nationalId: string; address: string; crcConsentAt?: string }
 ) {
   return request('/clients', { method: 'POST', body: JSON.stringify(input) }, token);
 }

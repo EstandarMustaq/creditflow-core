@@ -13,7 +13,7 @@
     "@creditflow-core/auth": "workspace:*",
     "@creditflow-core/calendar": "workspace:*",
     "@creditflow-core/db": "workspace:*",
-    "@creditflow-core/excel": "workspace:*",
+    "@creditflow-core/file-exchange": "workspace:*",
     "@creditflow-core/finance-engine": "workspace:*",
     "@creditflow-core/shared": "workspace:*",
     "@fastify/cors": "^10.0.1",

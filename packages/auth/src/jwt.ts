@@ -1,3 +1,5 @@
+// jsonwebtoken typing may be unavailable depending on the package consumer tsconfig.
+// @ts-ignore
 import jwt from 'jsonwebtoken';
 
 export interface AccessTokenPayload {

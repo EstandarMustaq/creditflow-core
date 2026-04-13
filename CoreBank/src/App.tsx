@@ -129,16 +129,17 @@ export default function App() {
   );
   const [loginForm, setLoginForm] = useState({
     name: 'Gestor CoreBank',
-    email: 'agency.manager@corebank.local',
+    email: 'gestor@managercorebank.co.mz',
     password: 'StrongPass123!',
     role: 'MANAGER',
   });
   const [clientForm, setClientForm] = useState({
     name: 'Amina Muianga',
+    nuib: '123456789012345',
     phone: '842345678',
-    email: 'amina.muianga@example.com',
-    nationalId: 'MZ-4545',
-    address: 'Matola',
+    email: 'amina.muianga@gmail.com',
+    nationalId: '100123456789A',
+    address: 'Av. de Mocambique, Matola',
   });
   const [loanForm, setLoanForm] = useState({
     principal: 32000,
@@ -216,7 +217,7 @@ export default function App() {
       client.loans.map((loan) => ({
         clientId: client.id,
         clientName: client.name,
-        phone: client.phone,
+        phone: client.phone ?? '',
         loanId: loan.loan.id,
         status: loan.summary.status,
         outstandingBalance: loan.summary.outstandingBalance,
@@ -303,8 +304,8 @@ export default function App() {
           return {
             id: client.id,
             name: client.name,
-            phone: client.phone,
-            email: client.email,
+            phone: client.phone ?? '',
+            email: client.email ?? null,
             summary: statement.summary,
             loans: statement.loans,
           } satisfies ClientPortfolioRecord;
@@ -991,10 +992,31 @@ export default function App() {
                         }
                       />
                       <Input
+                        label="NUIB"
+                        value={clientForm.nuib}
+                        onChange={(value) =>
+                          setClientForm((current) => ({ ...current, nuib: value }))
+                        }
+                      />
+                      <Input
                         label="Email"
                         value={clientForm.email}
                         onChange={(value) =>
                           setClientForm((current) => ({ ...current, email: value }))
+                        }
+                      />
+                      <Input
+                        label="BI"
+                        value={clientForm.nationalId}
+                        onChange={(value) =>
+                          setClientForm((current) => ({ ...current, nationalId: value }))
+                        }
+                      />
+                      <Input
+                        label="Morada"
+                        value={clientForm.address}
+                        onChange={(value) =>
+                          setClientForm((current) => ({ ...current, address: value }))
                         }
                       />
                     </div>

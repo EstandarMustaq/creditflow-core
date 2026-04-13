@@ -12,10 +12,22 @@ export interface AuthResponse {
 export interface ClientRecord {
   id: string;
   name: string;
-  phone: string;
-  email?: string | null;
-  nationalId?: string | null;
-  address?: string | null;
+  nuib: string | null;
+  phone: string | null;
+  email: string | null;
+  nationalId: string | null;
+  address: string | null;
+  crcConsentAt?: string | null;
+  kyc?: {
+    status: string;
+    documentType: string;
+    documentAuthentic: boolean;
+    documentFormatValid: boolean;
+    documentCheckedAt: string | null;
+    phoneVerified: boolean;
+    emailVerified: boolean;
+    addressVerified: boolean;
+  };
 }
 
 export interface ClientListResponse {

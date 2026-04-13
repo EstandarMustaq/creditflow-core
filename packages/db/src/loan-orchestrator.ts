@@ -6,9 +6,12 @@ import {
   getPortfolioSnapshot,
   roundMoney
 } from '@creditflow-core/finance-engine';
+import { generateReminderMessage } from '@creditflow-core/ai-finance';
+import { buildClientKycProfile, isNuib, normalizeNuib } from '@creditflow-core/shared';
 import { sendEmail } from '@creditflow-core/notifications';
 import type { InstallmentState, LoanScheduleResult } from '@creditflow-core/finance-engine';
 import { prisma } from './client.js';
+import { decryptField, encryptField } from './crypto.js';
 
 type AnyRecord = Record<string, unknown>;
 
@@ -65,6 +68,115 @@ function mapPayments(payments: AnyRecord[] = []) {
     paidAt: asDate(payment.paidAt),
     reference: payment.reference ? String(payment.reference) : undefined
   }));
+}
+
+function mapClientRecord(client: AnyRecord) {
+  return {
+    id: String(client.id),
+    name: String(client.name),
+    nuib: client.nuib ? String(client.nuib) : null,
+    phone: decryptField(client.phone ? String(client.phone) : null),
+    email: decryptField(client.email ? String(client.email) : null),
+    nationalId: decryptField(client.nationalId ? String(client.nationalId) : null),
+    address: decryptField(client.address ? String(client.address) : null),
+    crcConsentAt: client.crcConsentAt ? asDate(client.crcConsentAt).toISOString() : null,
+    kyc: {
+      status: String(client.kycStatus ?? 'PENDING'),
+      documentType: String(client.documentType ?? 'MOZ_ID'),
+      documentAuthentic: Boolean(client.documentAuthentic),
+      documentFormatValid: Boolean(client.documentFormatValid),
+      documentCheckedAt: client.documentCheckedAt ? asDate(client.documentCheckedAt).toISOString() : null,
+      phoneVerified: Boolean(client.phoneVerified),
+      emailVerified: Boolean(client.emailVerified),
+      addressVerified: Boolean(client.addressVerified),
+    },
+  };
+}
+
+async function appendImmutableRetentionLog(entry: {
+  loanContractId?: string;
+  eventType: string;
+  retentionUntil?: Date | null;
+  payload?: unknown;
+}) {
+  await db().immutableRetentionLog.create({
+    data: {
+      loanContractId: entry.loanContractId ?? null,
+      eventType: entry.eventType,
+      retentionUntil: entry.retentionUntil ?? null,
+      payload: entry.payload ?? null,
+    },
+  });
+}
+
+function escapeHtml(value: string) {
+  return value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
+function buildReminderEmailHtml(body: string, signatureNote: string) {
+  return `
+    <div style="background:#f8f4ea;padding:24px;font-family:Inter,Segoe UI,Arial,sans-serif;color:#101828;">
+      <div style="max-width:640px;margin:0 auto;background:#ffffff;border:1px solid rgba(16,24,40,0.08);border-radius:20px;padding:24px;box-shadow:0 10px 30px rgba(16,24,40,0.08);">
+        <div style="display:inline-block;padding:6px 12px;border-radius:999px;background:rgba(197,106,31,0.12);color:#c56a1f;font-size:11px;letter-spacing:0.18em;text-transform:uppercase;font-weight:700;">
+          CoreBank Reminder
+        </div>
+        <p style="margin:18px 0 0 0;font-size:15px;line-height:1.7;color:#101828;">
+          ${escapeHtml(body)}
+        </p>
+        <div style="margin-top:20px;padding:14px 16px;border-left:4px solid #c56a1f;background:#fff4ec;color:#c56a1f;border-radius:12px;font-size:12px;line-height:1.6;">
+          ${escapeHtml(signatureNote)}
+        </div>
+      </div>
+    </div>
+  `.trim();
+}
+
+function buildReminderSubject(input: {
+  installmentNumber: number;
+  status: string;
+  daysLate: number;
+}) {
+  if (input.status === 'AT_RISK') {
+    return `CoreBank | Prestação ${input.installmentNumber} vence hoje`;
+  }
+
+  return `CoreBank | Prestação ${input.installmentNumber} em atraso há ${input.daysLate} dia(s)`;
+}
+
+function buildReminderStoredMessage(body: string, signatureNote: string) {
+  return `${body}\n\n[CoreBank]\n${signatureNote}`.trim();
+}
+
+async function getMostActivePortfolioUser() {
+  const user = await db().user.findFirst({
+    where: {
+      role: {
+        in: ['MANAGER', 'OFFICER'],
+      },
+    },
+    orderBy: [
+      { lastActiveAt: 'desc' },
+      { updatedAt: 'desc' },
+      { createdAt: 'desc' },
+    ],
+  });
+
+  if (!user) {
+    return {
+      name: 'Equipa CoreBank',
+      roleLabel: 'gestor de carteira',
+    };
+  }
+
+  return {
+    name: String(user.name),
+    roleLabel: String(user.role) === 'MANAGER' ? 'gestor de carteira' : 'oficial de crédito',
+  };
 }
 
 async function writeAuditLog(entry: { entity: string; entityId?: string; action: string; payload?: unknown }) {
@@ -140,23 +252,61 @@ async function replaceInstallments(args: {
 
 export async function createClient(input: {
   name: string;
+  nuib: string;
   phone: string;
-  email?: string;
-  nationalId?: string;
-  address?: string;
+  email: string;
+  nationalId: string;
+  address: string;
+  crcConsentAt?: string;
 }) {
-  const client = await db().client.create({ data: input });
+  const nuib = normalizeNuib(input.nuib);
+  if (!isNuib(nuib)) {
+    throw new Error('Client NUIB is invalid.');
+  }
+  const kyc = buildClientKycProfile(input);
+  if (kyc.metadata.kycStatus !== 'VERIFIED') {
+    throw new Error('Client KYC validation failed.');
+  }
+  const client = await db().client.create({
+    data: {
+      name: input.name.trim(),
+      nuib,
+      phone: encryptField(kyc.phone),
+      email: encryptField(kyc.email),
+      nationalId: encryptField(kyc.nationalId),
+      address: encryptField(kyc.address),
+      kycStatus: kyc.metadata.kycStatus,
+      documentType: kyc.metadata.documentType,
+      documentAuthentic: kyc.metadata.documentAuthentic,
+      documentFormatValid: kyc.metadata.documentFormatValid,
+      documentCheckedAt: kyc.metadata.documentCheckedAt,
+      phoneVerified: kyc.metadata.phoneVerified,
+      emailVerified: kyc.metadata.emailVerified,
+      addressVerified: kyc.metadata.addressVerified,
+      crcConsentAt: input.crcConsentAt ? asDate(input.crcConsentAt) : null,
+    },
+  });
   await writeAuditLog({
     entity: 'CLIENT',
     entityId: String(client.id),
     action: 'CLIENT_CREATED',
-    payload: client
+    payload: {
+      id: String(client.id),
+      name: input.name.trim(),
+      nuib,
+      phone: kyc.phone,
+      email: kyc.email,
+      nationalId: kyc.nationalId,
+      address: kyc.address,
+      kyc: kyc.metadata,
+      crcConsentAt: input.crcConsentAt ?? null,
+    }
   });
-  return client;
+  return mapClientRecord(client as AnyRecord);
 }
 
 export async function listClients() {
-  return db().client.findMany({
+  const clients = await db().client.findMany({
     include: {
       loans: {
         orderBy: { createdAt: 'desc' }
@@ -164,10 +314,16 @@ export async function listClients() {
     },
     orderBy: { createdAt: 'desc' }
   });
+
+  return (clients as AnyRecord[]).map((client) => ({
+    ...mapClientRecord(client),
+    loans: Array.isArray(client.loans) ? client.loans : [],
+  }));
 }
 
 export async function createLoanContract(input: {
   clientId: string;
+  imfId?: string;
   principal: number;
   annualInterestRate: number;
   installmentCount: number;
@@ -175,6 +331,13 @@ export async function createLoanContract(input: {
   graceDays?: number;
   lateFeeRateDaily?: number;
   currency?: string;
+  counterparties?: Array<{
+    role: 'AVALIST' | 'GUARANTOR';
+    name: string;
+    nuib: string;
+    nationalId?: string;
+    phone?: string;
+  }>;
 }) {
   const schedule = calculateLoanSchedule({
     ...input,
@@ -183,8 +346,21 @@ export async function createLoanContract(input: {
     currency: input.currency ?? 'MZN'
   });
 
+  const client = await db().client.findUnique({
+    where: { id: input.clientId },
+  });
+
+  if (!client) {
+    throw new Error('Cliente não encontrado');
+  }
+
+  if (!client.nuib || !isNuib(String(client.nuib))) {
+    throw new Error('Client must have a valid NUIB before loan creation.');
+  }
+
   const loan = await db().loanContract.create({
     data: {
+      imfId: input.imfId ?? 'imf_default',
       clientId: input.clientId,
       principal: input.principal,
       annualInterestRate: input.annualInterestRate,
@@ -210,6 +386,36 @@ export async function createLoanContract(input: {
     schedule
   });
 
+  await db().loanParty.create({
+    data: {
+      loanContractId: String(loan.id),
+      clientId: String(client.id),
+      role: 'BORROWER',
+      name: String(client.name),
+      nuib: String(client.nuib),
+      nationalId: client.nationalId ? String(client.nationalId) : null,
+      phone: client.phone ? String(client.phone) : null,
+    },
+  });
+
+  for (const party of input.counterparties ?? []) {
+    const partyNuib = normalizeNuib(party.nuib);
+    if (!isNuib(partyNuib)) {
+      throw new Error(`Invalid NUIB for ${party.role.toLowerCase()}.`);
+    }
+
+    await db().loanParty.create({
+      data: {
+        loanContractId: String(loan.id),
+        role: party.role,
+        name: party.name.trim(),
+        nuib: partyNuib,
+        nationalId: party.nationalId ? encryptField(party.nationalId.trim().toUpperCase()) : null,
+        phone: party.phone ? encryptField(party.phone) : null,
+      },
+    });
+  }
+
   await writeAuditLog({
     entity: 'LOAN_CONTRACT',
     entityId: String(loan.id),
@@ -225,6 +431,8 @@ async function loadLoan(loanId: string) {
     where: { id: loanId },
     include: {
       client: true,
+      imf: true,
+      parties: true,
       installmentPlan: true,
       installments: {
         orderBy: { installmentNo: 'asc' }
@@ -251,6 +459,7 @@ export async function getLoanBalance(loanId: string, referenceDate?: string | Da
   return {
     loan: {
       id: String(loan.id),
+      imfId: loan.imfId ? String(loan.imfId) : null,
       clientId: String(loan.clientId),
       status: String(loan.status),
       principal: Number(loan.principal),
@@ -261,7 +470,25 @@ export async function getLoanBalance(loanId: string, referenceDate?: string | Da
       lateFeeRateDaily: Number(loan.lateFeeRateDaily ?? 0),
       currency: String(loan.currency ?? 'MZN')
     },
-    client: loan.client,
+    imf: loan.imf
+      ? {
+          id: String((loan.imf as AnyRecord).id),
+          code: String((loan.imf as AnyRecord).code),
+          name: String((loan.imf as AnyRecord).name),
+          nuib: String((loan.imf as AnyRecord).nuib),
+        }
+      : null,
+    client: mapClientRecord(loan.client as AnyRecord),
+    parties: Array.isArray(loan.parties)
+      ? (loan.parties as AnyRecord[]).map((party) => ({
+          id: String(party.id),
+          role: String(party.role),
+          name: String(party.name),
+          nuib: String(party.nuib),
+          nationalId: decryptField(party.nationalId ? String(party.nationalId) : null),
+          phone: decryptField(party.phone ? String(party.phone) : null),
+        }))
+      : [],
     summary: ledger.summary,
     schedule: ledger.schedule,
     payments
@@ -270,6 +497,8 @@ export async function getLoanBalance(loanId: string, referenceDate?: string | Da
 
 async function persistLedger(loanId: string, balance: Awaited<ReturnType<typeof getLoanBalance>>) {
   const summary = balance.summary;
+  const isPaid = summary.status === 'PAID';
+  const retentionUntil = isPaid ? new Date(new Date().setFullYear(new Date().getFullYear() + 10)) : null;
 
   await db().loanContract.update({
     where: { id: loanId },
@@ -278,9 +507,25 @@ async function persistLedger(loanId: string, balance: Awaited<ReturnType<typeof 
       totalPaid: summary.totalPaid,
       outstandingBalance: summary.outstandingBalance,
       totalContractValue: summary.totalContractValue,
-      longestDelayDays: summary.longestDelayDays
+      longestDelayDays: summary.longestDelayDays,
+      extinguishedAt: isPaid ? new Date() : null,
+      crcReportedAt: isPaid ? new Date() : null,
+      retentionUntil,
     }
   });
+
+  if (isPaid) {
+    await appendImmutableRetentionLog({
+      loanContractId: loanId,
+      eventType: 'LOAN_EXTINGUISHED',
+      retentionUntil,
+      payload: {
+        status: summary.status,
+        totalPaid: summary.totalPaid,
+        outstandingBalance: summary.outstandingBalance,
+      },
+    });
+  }
 
   for (const installment of balance.schedule) {
     await db().installment.updateMany({
@@ -431,14 +676,7 @@ export async function getClientStatement(clientId: string, referenceDate?: strin
   );
 
   return {
-    client: {
-      id: String(client.id),
-      name: String(client.name),
-      phone: String(client.phone),
-      email: client.email ? String(client.email) : null,
-      nationalId: client.nationalId ? String(client.nationalId) : null,
-      address: client.address ? String(client.address) : null
-    },
+    client: mapClientRecord(client as AnyRecord),
     loans,
     summary: {
       totalContracts: loans.length,
@@ -455,6 +693,7 @@ export async function queueAndSendReminders(input?: {
   dryRun?: boolean;
 }) {
   const referenceDate = input?.referenceDate ?? new Date();
+  const activeUser = await getMostActivePortfolioUser();
   const loans = (await db().loanContract.findMany({
     include: {
       client: true,
@@ -475,24 +714,35 @@ export async function queueAndSendReminders(input?: {
     );
 
     for (const candidate of candidates) {
-      const channel = (loan.client as AnyRecord)?.email ? 'EMAIL' : 'INTERNAL';
-      const message =
-        candidate.status === 'AT_RISK'
-          ? `Prestação ${candidate.installmentNumber} vence hoje. Valor em risco: ${candidate.remainingToPay}.`
-          : `Prestação ${candidate.installmentNumber} em atraso há ${candidate.daysLate} dia(s). Saldo: ${candidate.remainingToPay}.`;
+      const clientEmail = decryptField((loan.client as AnyRecord)?.email ? String((loan.client as AnyRecord).email) : null);
+      const channel = clientEmail ? 'EMAIL' : 'INTERNAL';
+      const reminderCopy = await generateReminderMessage({
+        clientName: String((loan.client as AnyRecord)?.name ?? 'cliente'),
+        signerName: activeUser.name,
+        signerRole: activeUser.roleLabel,
+        installmentNumber: candidate.installmentNumber,
+        status: candidate.status,
+        daysLate: candidate.daysLate,
+        remainingToPay: candidate.remainingToPay,
+      });
+      const signatureNote = `informamos em nome de ${activeUser.name}, ${activeUser.roleLabel}, esta mensagem foi gerada automaticamente e assinada ${activeUser.name}, ${activeUser.roleLabel}, Corebank.`;
+      const message = reminderCopy.message.replace(signatureNote, '').trim();
+      const subject = buildReminderSubject({
+        installmentNumber: candidate.installmentNumber,
+        status: candidate.status,
+        daysLate: candidate.daysLate,
+      });
+      const storedMessage = buildReminderStoredMessage(message, signatureNote);
 
       let reminderStatus = channel === 'EMAIL' ? 'PENDING' : 'PENDING';
       let sentAt: Date | null = null;
 
-      if (!input?.dryRun && channel === 'EMAIL' && (loan.client as AnyRecord)?.email && process.env.SMTP_HOST) {
+      if (!input?.dryRun && channel === 'EMAIL' && clientEmail && process.env.SMTP_HOST) {
         try {
           await sendEmail({
-            to: String((loan.client as AnyRecord).email),
-            subject:
-              candidate.status === 'AT_RISK'
-                ? 'Prestação vence hoje'
-                : `Prestação em atraso há ${candidate.daysLate} dia(s)`,
-            html: `<p>${message}</p>`
+            to: clientEmail,
+            subject,
+            html: buildReminderEmailHtml(message, signatureNote)
           });
           reminderStatus = 'SENT';
           sentAt = new Date();
@@ -505,14 +755,14 @@ export async function queueAndSendReminders(input?: {
         ? {
             loanContractId: String(loan.id),
             channel,
-            message,
+            message: storedMessage,
             status: reminderStatus
           }
         : await db().reminder.create({
             data: {
               loanContractId: String(loan.id),
               channel,
-              message,
+              message: storedMessage,
               scheduledAt: new Date(),
               sentAt,
               status: reminderStatus,

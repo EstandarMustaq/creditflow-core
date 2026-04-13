@@ -1,7 +1,8 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 import { calculateLoanSchedule } from '@creditflow-core/finance-engine';
-import { createLoanContract, getLoanBalance, regenerateLoanSchedule } from '@creditflow-core/db';
+import { createLoanContract, generateSettlementLetter, getLoanBalance, regenerateLoanSchedule } from '@creditflow-core/db';
+import { isMozNationalId, isMozMobilePhone, isNuib } from '@creditflow-core/shared';
 
 const simulateSchema = z.object({
   principal: z.number().positive(),
@@ -14,7 +15,19 @@ const simulateSchema = z.object({
 });
 
 const createLoanSchema = simulateSchema.extend({
-  clientId: z.string().min(1)
+  clientId: z.string().min(1),
+  imfId: z.string().min(1).optional(),
+  counterparties: z
+    .array(
+      z.object({
+        role: z.enum(['AVALIST', 'GUARANTOR']),
+        name: z.string().min(2),
+        nuib: z.string().refine(isNuib, 'NUIB must have exactly 15 digits'),
+        nationalId: z.string().refine(isMozNationalId, 'Invalid Mozambique national ID').optional(),
+        phone: z.string().refine(isMozMobilePhone, 'Invalid Mozambique mobile number').optional(),
+      }),
+    )
+    .default([])
 });
 
 const regenerateSchema = z.object({
@@ -48,5 +61,12 @@ export const loanRoutes: FastifyPluginAsync = async (app) => {
 
   app.get('/:id/balance', { preHandler: app.authenticate }, async (request: any) => {
     return getLoanBalance(request.params.id);
+  });
+
+  app.get('/:id/settlement-letter', { preHandler: app.authenticate }, async (request: any) => {
+    return generateSettlementLetter({
+      loanId: request.params.id,
+      issuedBy: request.user?.name ?? request.user?.sub ?? null,
+    });
   });
 };

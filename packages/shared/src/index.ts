@@ -8,4 +8,5 @@ export interface ApiResult<T> {
   error?: string;
 }
 
+export * from './kyc.js';
 export * from './worker-health.js';

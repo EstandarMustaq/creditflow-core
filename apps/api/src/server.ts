@@ -9,10 +9,12 @@ import { clientRoutes } from './routes/clients.js';
 import { loanRoutes } from './routes/loans.js';
 import { paymentRoutes } from './routes/payments.js';
 import { aiRoutes } from './routes/ai.js';
-import { excelRoutes } from './routes/excel.js';
+import { fileRoutes } from './routes/files.js';
 import { calendarRoutes } from './routes/calendar.js';
 import { reportRoutes } from './routes/reports.js';
 import { reminderRoutes } from './routes/reminders.js';
+import { imfRoutes } from './routes/imfs.js';
+import { crcRoutes } from './routes/crc.js';
 
 export async function buildServer() {
   const app = Fastify({ logger: true });
@@ -32,7 +34,7 @@ export async function buildServer() {
   app.get('/', async () => ({
     service: 'creditflow-core',
     status: 'ok',
-    modules: ['auth', 'clients', 'loans', 'payments', 'ai', 'excel', 'calendar', 'reminders', 'reports']
+    modules: ['auth', 'clients', 'loans', 'payments', 'ai', 'files', 'calendar', 'reminders', 'reports', 'imfs', 'crc']
   }));
 
   await app.register(healthRoutes, { prefix: '/health' });
@@ -41,10 +43,12 @@ export async function buildServer() {
   await app.register(loanRoutes, { prefix: '/loans' });
   await app.register(paymentRoutes, { prefix: '/payments' });
   await app.register(aiRoutes, { prefix: '/ai' });
-  await app.register(excelRoutes, { prefix: '/excel' });
+  await app.register(fileRoutes, { prefix: '/files' });
   await app.register(calendarRoutes, { prefix: '/calendar' });
   await app.register(reminderRoutes, { prefix: '/reminders' });
   await app.register(reportRoutes, { prefix: '/reports' });
+  await app.register(imfRoutes, { prefix: '/imfs' });
+  await app.register(crcRoutes, { prefix: '/crc' });
 
   return app;
 }
